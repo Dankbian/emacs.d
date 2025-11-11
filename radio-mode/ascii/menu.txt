@@ -1,0 +1,10 @@
+╔════════════════════════════════════════╗
+║        ESTACIONES DISPONIBLES          ║
+╠════════════════════════════════════════╣
+║  [1]  1.FM 80s & 90s Hits              ║
+║  [2]  Radio Caprice 80s Pop            ║
+║  [3]  Classic Rock Replay              ║
+║  [4]  Radio Swiss Classic Rock         ║
+║  [5]  Radio Paradise                   ║
+╚════════════════════════════════════════╝
+ [r] reproducir   [s] parar   [q] salir
