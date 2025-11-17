@@ -316,6 +316,29 @@
 (with-eval-after-load 'org-agenda
   (setq org-agenda-format-date "%a %d-%m-%Y"))
 
+;;; ==================== Archivos que escanea la Agenda ====================
+(let* ((sem (expand-file-name "escuela/5 semestre" "~")))
+  (setq org-agenda-files
+        (directory-files-recursively sem "\\.org\\'")))
+
+;;; ==================== org-capture (plantilla general) ====================
+(global-set-key (kbd "C-c c") #'org-capture)
+(setq org-default-notes-file (expand-file-name "escuela/5 semestre/estudios.org" "~"))
+(setq org-capture-templates
+      `(("g" "General To-Do" entry
+         (file+headline ,(expand-file-name "escuela/5 semestre/estudios.org" "~") "Inbox")
+         "* %^{Estado|POR_HACER|EN_PROGRESO|BLOQUEADO|HECHO|ENTREGADO} [#%^{Prioridad|B|A|C}] %^{Título} :%^{Tags|t_tarea|t_lab|t_proyecto|t_examen|t_lectura|m_ciberseguridad|m_pentesting|m_prog_red|m_enrutamiento|m_paradigmas|m_conmutacion_lan}:\nSCHEDULED: %^t\nDEADLINE:  %^{Fecha límite}t\n:PROPERTIES:\n:Created: %U\n:END:\n%?\n"
+         :empty-lines 0)))
+
+;;; ==================== Org-roam ====================
+(use-package org-roam
+  :init
+  (setq org-roam-v2-ack t)
+  :custom
+  (org-roam-directory (file-truename "~/org/roam/"))
+  :config
+  (org-roam-db-autosync-mode))
+
 ;;; ==================== (Opcional) Clipboard en terminal ====================
 ;; Si quieres compartir portapapeles en -nw, descomenta UNO:
 ;; (use-package wl-clipboard :if (and (not (display-graphic-p)) (executable-find "wl-copy"))
@@ -338,6 +361,68 @@
 	    treemacs-nerd-icons valign yasnippet-snippets)))
 
 ;; --------------- CONFIRUACIÓN PARA QUE LOS .ORG TENGAN ASI ESTILO BONITO EN AUTOMATICO
+
+;;; ==== Org: preámbulo LaTeX automático para archivos nuevos ====
+;; Inserta cabecera por defecto en todo .org recién creado.
+;; Usa el nombre del archivo (sin extensión) como #+TITLE:.
+
+(require 'subr-x)                        ;; para string-trim, etc.
+(setq user-full-name (or user-full-name "Dankbian"))
+
+(use-package autoinsert
+  :ensure nil
+  :hook (after-init . auto-insert-mode)
+  :config
+  (setq auto-insert-query nil)           ;; no preguntar "Insert skeleton?"
+
+  ;; Derivar el título del nombre del archivo
+  (defun my/org-derive-title-from-filename ()
+    (let* ((base (file-name-base (or (buffer-file-name) (buffer-name))))
+           (clean (string-trim (replace-regexp-in-string "[-_]+" " " base))))
+      (mapconcat #'capitalize (split-string clean " ") " ")))
+
+  ;; Generar el texto del preámbulo
+  (defun my/org-make-preamble ()
+    (let* ((title  (my/org-derive-title-from-filename))
+           (author (or user-full-name "Dankbian")))
+      (concat
+       "#+TITLE: "  title  "\n"
+       "#+AUTHOR: " author "\n\n"
+       "#+LANGUAGE: es\n"
+       "#+OPTIONS: toc:t num:t\n"
+       "#+LATEX_CLASS: article\n"
+       "#+LATEX_HEADER: \\usepackage{geometry}\n"
+       "#+LATEX_HEADER: \\geometry{margin=2.5cm}\n"
+       "#+LATEX_HEADER: \\usepackage{parskip}\n"
+       "#+LATEX_HEADER: \\usepackage{xcolor}\n"
+       "#+LATEX_HEADER: \\usepackage{sectsty}\n"
+       "#+LATEX_HEADER: \\usepackage[hidelinks]{hyperref}\n"
+       "#+LATEX_HEADER: \\usepackage{tocloft}\n"
+       "#+LATEX_HEADER: \\renewcommand{\\cftdotsep}{1.5}\n"
+       "#+LATEX_HEADER: \\renewcommand{\\cftsecleader}{\\cftdotfill{\\cftdotsep}}\n"
+       "#+LATEX_HEADER: \\usepackage{titling}\n"
+       "#+LATEX_HEADER: \\pretitle{\\begin{center}\\Huge\\bfseries}\n"
+       "#+LATEX_HEADER: \\posttitle{\\par\\end{center}\\vfill}\n"
+       "#+LATEX_HEADER: \\preauthor{\\begin{center}\\Large}\n"
+       "#+LATEX_HEADER: \\postauthor{\\par\\end{center}\\vfill}\n"
+       "#+LATEX_HEADER: \\predate{\\begin{center}\\large}\n"
+       "#+LATEX_HEADER: \\postdate{\\par\\end{center}\\vfill\\newpage}\n\n"
+       "#+LATEX_HEADER: \\usepackage{booktabs}\n"
+       "#+LATEX_HEADER: \\usepackage{listings}\n"
+       "#+LATEX_HEADER: \\lstset{basicstyle=\\ttfamily\\small, breaklines=true, keywordstyle=\\color{red}}\n\n"
+       "#+LATEX: \\newpage\n\n")))
+
+  ;; Regla de auto-insert para .org
+  (define-auto-insert
+    '("\\.org\\'" . "Org default preamble")
+    (lambda () (insert (my/org-make-preamble)))))
+
+
+;; Comando manual por si quieres insertar el preámbulo en un .org existente
+(defun my/insert-org-preamble ()
+  "Inserta el preámbulo Org/LaTeX por defecto en el buffer actual."
+  (interactive)
+  (insert (my/org-make-preamble)))
 
 ;; Recomendado si incluyes hyperref en el preámbulo de cada .org:
 ;; evita que Org cargue su propia versión de hyperref y lo duplique.
@@ -461,6 +546,10 @@
 
 
 
+
+
+
+
 (use-package dashboard
   :ensure t
   :config
@@ -472,6 +561,9 @@
                           (projects . 5)
                           (bookmarks . 5)
                           (agenda . 5))))
+
+
+
 
 ;; ---------------------------
 ;; Fondo translúcido en Emacs -nw
@@ -505,276 +597,147 @@
 (require 'org)
 (require 'outline)
 
-;;;; org-custom-triangles-mode --- Reemplaza asteriscos de Org por triángulos de colores dinámicos
-;; Definición de caras (faces) para cada nivel de encabezado:
-(defface org-custom-triangle-level-1
-  '((t :foreground "#00fdfd"))
-  "Face para triángulo de encabezado nivel 1.")
-(defface org-custom-triangle-level-2
-  '((t :foreground "#39FF14"))
-  "Face para triángulo de encabezado nivel 2.")
-(defface org-custom-triangle-level-3
-  '((t :foreground "#fe0ab7"))
-  "Face para triángulo de encabezado nivel 3 (morado neón).")
-(defface org-custom-triangle-level-4
-  '((t :foreground "#55ffe2"))
-  "Face para triángulo de encabezado nivel 4 (cian).")
-(defface org-custom-triangle-level-5
-  '((t :foreground "#c2ff05"))
-  "Face para triángulo de encabezado nivel 5 (verde fosforescente).")
+;; ===========================
+;; TRIÁNGULOS DINÁMICOS VISUALES + COLORES
+;; ===========================
 
-(defun org-custom-triangles--symbol (level has-child folded)
-  "Devuelve el símbolo correcto según LEVEL, HAS-CHILD y FOLDED.
-Niveles 1–2: triángulo sólido.
-Niveles 3+: triángulo hueco."
-  (cond
-   ;; Sin hijos: siempre como expandido
-   ((not has-child)
-    (if (<= level 2) "▼ " "▽ "))
-   ;; Con hijos y PLEGADO
-   (folded
-    (if (<= level 2) "▼ " "▷ "))  ;; puedes cambiar ▷ si quieres otro cerrado para niveles bajos
-   ;; Con hijos y EXPANDIDO
-   (t
-    (if (<= level 2) "▼ " "▽ "))))
-  
+(require 'org)
+(require 'outline)
 
-;; Variables para los símbolos de triángulo:
-;;(defvar org-custom-triangle-open "▾" "Símbolo de triángulo para encabezado expandido.")
-;;(defvar org-custom-triangle-closed "▸" "Símbolo de triángulo para encabezado plegado.")
+;; ======================
+;; FACES (COLORES POR NIVEL)
+;; ======================
 
-;; Variable interna para almacenar los overlays creados (por buffer):
+(defface org-custom-triangle-level-1 '((t :foreground "#00fdfd")) "Color nivel 1.")
+(defface org-custom-triangle-level-2 '((t :foreground "#39FF14")) "Color nivel 2.")
+(defface org-custom-triangle-level-3 '((t :foreground "#fe0ab7")) "Color nivel 3.")
+(defface org-custom-triangle-level-4 '((t :foreground "#55ffe2")) "Color nivel 4.")
+(defface org-custom-triangle-level-5 '((t :foreground "#c2ff05")) "Color nivel 5.")
+
+(defun org-custom-triangles--face (level)
+  (pcase level
+    (1 'org-custom-triangle-level-1)
+    (2 'org-custom-triangle-level-2)
+    (3 'org-custom-triangle-level-3)
+    (4 'org-custom-triangle-level-4)
+    (_ 'org-custom-triangle-level-5)))
+
+;; =============================================
+;; ESTADO VISUAL — INDEPENDIENTE DEL REAL
+;; =============================================
+
+(defvar-local org-custom-triangles--visual-state (make-hash-table :test 'equal)
+  "Estado visual de plegado por encabezado.")
+
+(defun org-custom-triangles--visually-folded-p (point)
+  (gethash point org-custom-triangles--visual-state))
+
+(defun org-custom-triangles--toggle-visual (point)
+  (puthash point (not (gethash point org-custom-triangles--visual-state))
+           org-custom-triangles--visual-state))
+
+;; =======================
+;; SÍMBOLOS DINÁMICOS
+;; =======================
+
+(defun org-custom-triangles--symbol (level point)
+  "Triángulos sólidos (1–2) o huecos (3+), dinámicos y **visuales**."
+  (let ((folded (org-custom-triangles--visually-folded-p point)))
+    (if folded
+        (if (<= level 2) "▶ " "▷ ")  ;; cerrado
+      (if (<= level 2) "▼ " "▽ ")))) ;; abierto
+
+;; ============================
+;; OVERLAYS
+;; ============================
+
 (defvar-local org-custom-triangles--overlays nil
-  "Lista de overlays de triángulos aplicados en el buffer actual.")
+  "Overlays activos en el buffer.")
 
-;; Función auxiliar: determina si el encabezado en POINT tiene hijos.
-(defun org-custom-triangles--has-child-p (point)
-  "Devuelve t si el encabezado en POINT (inicio de línea) tiene al menos un subencabezado hijo."
-  (save-excursion
-    (goto-char point)
-    (org-goto-first-child)))  ;; org-goto-first-child mueve al primer hijo si existe, devuelve t si tuvo éxito.
-
-;; Función auxiliar: verifica si un encabezado en POINT está actualmente plegado.
-(defun org-custom-triangles--folded-p (point)
-  "Devuelve t si el encabezado en POINT está plegado (subárbol oculto)."
-  (save-excursion
-    (goto-char point)
-    (let ((has-child (org-custom-triangles--has-child-p point)))
-      (when has-child
-        ;; Si tiene hijo, comprobar si el primer hijo está invisible:
-        (org-goto-first-child)
-        (let ((child-pos (point)))
-          (goto-char point)  ;; volver al encabezado original
-          (outline-invisible-p child-pos))))))
-
-;; Función principal para crear un overlay de triángulo en un encabezado dado:
 (defun org-custom-triangles--make-overlay (point level)
-  "Crea un overlay de triángulo en el encabezado de nivel LEVEL que comienza en POINT."
-  (save-excursion
-    (goto-char point)
-    ;; Determinar símbolo y face según estado:
-    (let* ((has-child (org-custom-triangles--has-child-p point))
-           (folded (org-custom-triangles--folded-p point))
-           (symbol (org-custom-triangles--symbol level has-child folded))
-           (face-symbol (pcase level
-                          (1 'org-custom-triangle-level-1)
-                          (2 'org-custom-triangle-level-2)
-                          (3 'org-custom-triangle-level-3)
-                          (4 'org-custom-triangle-level-4)
-                          (5 'org-custom-triangle-level-5)
-                          (_ 'org-custom-triangle-level-5))))  ;; niveles >5 reutilizan nivel 5 (se puede ajustar)
-      ;; Calcular rango de asteriscos a cubrir (desde inicio de línea hasta el espacio después de los asteriscos):
-      (when (looking-at "^\\*+ ")
-        (let ((stars-end (match-end 0))
-              (ov (make-overlay (match-beginning 0) (match-end 0))))
-          ;; Configurar overlay: mostrar el símbolo en lugar de los asteriscos
-          (overlay-put ov 'display (propertize symbol 'face face-symbol))
-          (overlay-put ov 'org-custom-triangle t)      ; marca para identificar nuestros overlays
-          (overlay-put ov 'org-level level)            ; guarda nivel (opcional, por si se usa más adelante)
-          (push ov org-custom-triangles--overlays)
-          ov)))))
-
-;; Función para inicializar todos los overlays en el buffer actual:
-(defun org-custom-triangles--apply-all ()
-  "Aplica overlays de triángulo a todos los encabezados del buffer Org actual."
-  (save-excursion
-    (goto-char (point-min))
-    ;; Recorrer todos los encabezados
-    (while (re-search-forward "^\\*+ " nil t)
-      (let* ((beg (match-beginning 0))
-             (level (length (match-string 0))));; match-string 0 incluye los '*' y el espacio
-        ;; La longitud de match-string 0 será (# de * + 1), pero como incluye el espacio final, el nivel es length-1
-        (setq level (max 1 (1- level)))
-        (org-custom-triangles--make-overlay beg level)))))
-
-;; Función para actualizar el triángulo de un encabezado en POINT (inicio de línea)
-(defun org-custom-triangles--update-at (point)
-  "Actualiza el símbolo de triángulo en el encabezado que comienza en POINT."
   (save-excursion
     (goto-char point)
     (when (looking-at "^\\*+ ")
-      (let* ((level (max 1 (1- (length (match-string 0)))))
-             (has-child (org-custom-triangles--has-child-p point))
-             (folded (org-custom-triangles--folded-p point))
-             (symbol (org-custom-triangles--symbol level has-child folded))
-             (face-symbol (pcase level
-                            (1 'org-custom-triangle-level-1)
-                            (2 'org-custom-triangle-level-2)
-                            (3 'org-custom-triangle-level-3)
-                            (4 'org-custom-triangle-level-4)
-                            (5 'org-custom-triangle-level-5)
-                            (_ 'org-custom-triangle-level-5))))
-        ;; Buscar el overlay existente en este encabezado:
-        (let ((ovs (overlays-at point)) ov-found)
-          (dolist (ov ovs)
-            (when (overlay-get ov 'org-custom-triangle)
-              (setq ov-found ov)))
-          ;; Si existe, actualizarlo; si no existe (por alguna razón), crearlo:
-          (if ov-found
-              (overlay-put ov-found 'display (propertize symbol 'face face-symbol))
-            (org-custom-triangles--make-overlay point level)))))))
+      (let* ((symbol (org-custom-triangles--symbol level point))
+             (face   (org-custom-triangles--face level))
+             (ov (make-overlay (match-beginning 0) (match-end 0))))
+        (overlay-put ov 'display (propertize symbol 'face face))
+        (overlay-put ov 'org-custom-triangle t)
+        (push ov org-custom-triangles--overlays)))))
 
-;; Función para actualizar todos los triángulos (por ejemplo, tras un cambio global de visibilidad)
+(defun org-custom-triangles--update-at (point)
+  (save-excursion
+    (goto-char point)
+    (when (looking-at "^\\(\\*+\\) ")
+      (let* ((level (length (match-string 1)))
+             (symbol (org-custom-triangles--symbol level point))
+             (face   (org-custom-triangles--face level)))
+        (dolist (ov (overlays-at point))
+          (when (overlay-get ov 'org-custom-triangle)
+            (overlay-put ov 'display (propertize symbol 'face face))))))))
+
+(defun org-custom-triangles--apply-all ()
+  (setq org-custom-triangles--overlays nil)
+  (clrhash org-custom-triangles--visual-state)
+  (save-excursion
+    (goto-char (point-min))
+    (while (re-search-forward "^\\(\\*+\\) " nil t)
+      (let* ((point (match-beginning 1))
+             (level (length (match-string 1))))
+        (puthash point nil org-custom-triangles--visual-state)
+        (org-custom-triangles--make-overlay point level)))))
+
 (defun org-custom-triangles--update-all ()
-  "Actualiza todos los triángulos segun el estado actual de cada encabezado."
   (dolist (ov org-custom-triangles--overlays)
     (let ((pos (overlay-start ov)))
       (when pos
         (org-custom-triangles--update-at pos)))))
 
-(defun my/org-refresh-all-heading-bullets ()
-  "Activa triángulos y refresca encabezados Org en todos los buffers."
-  (dolist (buf (buffer-list))
-    (with-current-buffer buf
-      (when (derived-mode-p 'org-mode)
-        ;; Asegura que el modo esté activo
-        (unless (bound-and-true-p org-custom-triangles-mode)
-          (org-custom-triangles-mode 1))
-        ;; Fuerza recalcular los triángulos según folded/children
-        (when (fboundp 'org-custom-triangles--update-all)
-          (org-custom-triangles--update-all))))))
+;; ======================
+;; HOOKS (TAB / INSERT)
+;; ======================
 
-(add-hook 'after-init-hook #'my/org-refresh-all-heading-bullets)
-
-
-;; Funciones manejadoras de hooks:
-(defun org-custom-triangles--after-cycle (state)
-  "Función para `org-cycle-hook`. Actualiza triángulo(s) tras plegar/desplegar.
-STATE es el estado de visibilidad resultante (ej. 'folded, 'children, 'subtree, 'overview, 'contents, 'all)."
-  ;; Si es un ciclo local (folded/children/subtree):
-  (cond
-   ((eq state 'folded)
-    ;; El encabezado actual se plegó:
-    (org-custom-triangles--update-at (line-beginning-position)))
-   ((memq state '(children subtree))
-    ;; El encabezado actual se desplegó (parcial o totalmente):
-    (org-custom-triangles--update-at (line-beginning-position)))
-   ((memq state '(overview contents all))
-    ;; Ciclo global: actualizar todos los visibles
-    (org-custom-triangles--update-all))))
+(defun org-custom-triangles--after-cycle (_state)
+  (let ((pt (line-beginning-position)))
+    (org-custom-triangles--toggle-visual pt)
+    (org-custom-triangles--update-at pt)))
 
 (defun org-custom-triangles--after-insert ()
-  "Función para `org-insert-heading-hook`. Crea/actualiza triángulos tras insertar un nuevo encabezado."
-  ;; El nuevo encabezado comienza en la línea actual (después de M-RET):
-  (let ((pt (line-beginning-position))
-        (level (org-current-level)))
-    (when level
-      ;; Crear overlay para el nuevo encabezado:
-      (org-custom-triangles--make-overlay pt level)
-      ;; Si no es de nivel 1, entonces tiene un padre al que quizá haya que actualizar:
-      (when (> level 1)
-        (save-excursion
-          (org-up-heading-safe) ;; mover al encabezado padre
-          (org-custom-triangles--update-at (line-beginning-position)))))))
+  (let* ((pt (line-beginning-position))
+         (level (org-current-level)))
+    (puthash pt nil org-custom-triangles--visual-state)
+    (org-custom-triangles--make-overlay pt level)))
 
-(defun org-custom-triangles--after-promote ()
-  "Función para `org-after-promote-entry-hook`. Actualiza triángulos tras promover encabezado(s)."
-  ;; Después de promover, el encabezado actual es de nivel menor (más alto en jerarquía).
-  ;; Actualizar su propio triángulo (nuevo color, símbolo igual que antes):
-  (org-custom-triangles--update-at (line-beginning-position))
-  ;; Además, si tenía un padre antes, ese padre pudo haber perdido un hijo:
-  (save-excursion
-    (when (org-up-heading-safe)  ;; mover al antiguo padre (que ahora está arriba)
-      (org-custom-triangles--update-at (line-beginning-position)))))
+;; =======================
+;; MINOR MODE
+;; =======================
 
-(defun org-custom-triangles--after-demote ()
-  "Función para `org-after-demote-entry-hook`. Actualiza triángulos tras degradar encabezado(s)."
-  ;; Después de degradar, el encabezado actual es de nivel mayor (más bajo en jerarquía).
-  ;; Actualizar su triángulo (nuevo color):
-  (org-custom-triangles--update-at (line-beginning-position))
-  ;; Su nuevo padre (antes era un hermano de nivel superior) ahora ganó un hijo:
-  (save-excursion
-    (when (org-up-heading-safe)
-      (org-custom-triangles--update-at (line-beginning-position)))))
-
-(defun org-custom-triangles--after-refile-insert ()
-  "Función para `org-after-refile-insert-hook`. Actualiza triángulos tras mover un subárbol (refile)."
-  ;; Después de insertar el subárbol en nueva ubicación (antes de quitarlo de la antigua).
-  ;; Actualizar nuevo padre:
-  (save-excursion
-    (when (org-up-heading-safe)
-      (org-custom-triangles--update-at (line-beginning-position))))
-  ;; Programar actualización del antiguo padre tras refile (usando un pequeño delay para después de la eliminación):
-  (run-at-time 0.1 nil
-               (lambda ()
-                 (when (buffer-live-p org-refile-old-buffer)
-                   (with-current-buffer org-refile-old-buffer
-                     (save-excursion
-                       (when org-refile-old-hash
-                         ;; org-refile guarda org-refile-old-hash y org-refile-old-cmd-marker
-                         ;; Podemos mover al marcador viejo y actualizar padre:
-                         (goto-char (point-min))
-                         (when (and org-refile-old-cmd-marker
-                                    (marker-buffer org-refile-old-cmd-marker))
-                           (goto-char org-refile-old-cmd-marker)
-                           (when (org-up-heading-safe)
-                             (org-custom-triangles--update-at (line-beginning-position)))))))))))
-
-;; Definir la minor mode:
 (define-minor-mode org-custom-triangles-mode
-  "Minor mode para mostrar triángulos de color en encabezados Org en vez de asteriscos."
-  :lighter ""  ;; sin indicador en el modeline
+  "Triángulos dinámicos con colores por nivel."
+  :lighter ""
   (if org-custom-triangles-mode
       (progn
-        ;; Al activar: crear overlays en todos los encabezados y registrar hooks.
         (org-custom-triangles--apply-all)
-        ;; Hooks locales:
         (add-hook 'org-cycle-hook #'org-custom-triangles--after-cycle nil t)
-        (add-hook 'org-insert-heading-hook #'org-custom-triangles--after-insert nil t)
-        (add-hook 'org-after-promote-entry-hook #'org-custom-triangles--after-promote nil t)
-        (add-hook 'org-after-demote-entry-hook #'org-custom-triangles--after-demote nil t)
-        (add-hook 'org-after-refile-insert-hook #'org-custom-triangles--after-refile-insert nil t))
-    ;; Al desactivar: quitar overlays y eliminar hooks.
+        (add-hook 'org-insert-heading-hook #'org-custom-triangles--after-insert nil t))
     (remove-hook 'org-cycle-hook #'org-custom-triangles--after-cycle t)
     (remove-hook 'org-insert-heading-hook #'org-custom-triangles--after-insert t)
-    (remove-hook 'org-after-promote-entry-hook #'org-custom-triangles--after-promote t)
-    (remove-hook 'org-after-demote-entry-hook #'org-custom-triangles--after-demote t)
-    (remove-hook 'org-after-refile-insert-hook #'org-custom-triangles--after-refile-insert t)
-    ;; Eliminar todos los overlays creados:
-    (mapc #'delete-overlay org-custom-triangles--overlays)
-    (setq org-custom-triangles--overlays nil)))
+    (mapc #'delete-overlay org-custom-triangles--overlays)))
 
-;; Activar automáticamente la minor mode en org-mode:
 (add-hook 'org-mode-hook #'org-custom-triangles-mode)
 
-
-
-;; AQUI ACABAN LOS TRIANGUILOS DINAMICOS
+;; ====================
+;; OCULTAR ASTERISCOS
+;; ====================
 
 (defun my/org-hide-stars ()
-  "Oculta los asteriscos de los encabezados OrgMode (visualmente)."
   (font-lock-add-keywords
-   nil
-   '(("^\\(\\*+\\) "
-      (1 '(face nil invisible org-hide) prepend)))
+   nil '(("^\\(\\*+\\) " (1 '(face nil invisible org-hide) prepend)))
    'append))
 
 (add-hook 'org-mode-hook #'my/org-hide-stars)
 
 
-;====================================================================
-;============= AQUI ACABA LA OCONFIGURACIÓN DE LOS TRIANGULOS
-;============================================================
 
 ;; ESTO ES PARA QUE LAS TABLAS SE VEAN BONITAS 
 
@@ -1371,7 +1334,7 @@ Evita interferir con JDTLS en el hook de `java-mode`."
 (setenv "PATH" (concat (expand-file-name "~/.local/bin") ":" (getenv "PATH")))
 
 ;; ==============================
-;; Eglot + python-lsp-server
+;; 🚀 Eglot + python-lsp-server
 ;; ==============================
 (use-package eglot
   :ensure t
